@@ -1,0 +1,178 @@
+create schema olympics_database;
+set search_path to olympics_database;
+
+
+ --LEVEL 1
+ CREATE TABLE Country
+ (
+ 	CountryID varchar(3),
+ 	CountryName varchar(50) NOT NULL,
+ 	CONSTRAINT pkc PRIMARY KEY(CountryID)
+ );
+
+ CREATE TABLE Sport
+ (
+ 	SportID integer,
+ 	SportName varchar(50) NOT NULL UNIQUE,
+ 	SportType varchar(50),
+ 	Description text,
+ 	constraint pks PRIMARY KEY(SportID)
+ );
+
+ CREATE TABLE Venue
+ (
+ 	VenueID integer,
+ 	VenueName varchar(50) NOT NULL,
+ 	constraint pkv PRIMARY KEY(VenueID)
+ );
+
+-- LEVEL 2 
+  CREATE TABLE Team
+  (
+  	TeamID integer,
+  	NumberOfPlayers integer,
+  	CountryID varchar(3),
+  	constraint fkt FOREIGN KEY (CountryID) references country(CountryID)
+  	ON DELETE SET DEFAULT ON UPDATE CASCADE,
+  	constraint pkt PRIMARY KEY(TeamID)
+  );
+
+-- LEVEL 2
+  CREATE TABLE IndividualEvent
+  (
+  	EventID integer,
+  	EventName varchar(50),
+  	Description text,
+  	NoOfOpposingPlayers integer,
+  	WorldRecord numeric,
+  	WorldRecordHolder varchar(50),  --Name
+  	OlympicRecord numeric,
+  	OlympicRecordHolder varchar(50), -- Name
+  	SportID integer,
+   	constraint fkie FOREIGN KEY (SportID) references sport(SportID)
+  	 	ON DELETE SET DEFAULT ON UPDATE CASCADE,
+   	constraint pkie PRIMARY KEY(EventID)
+  );
+
+-- LEVEL 2
+  CREATE TABLE TeamEvent
+  (
+  	EventID integer,
+  	EventName varchar(50),
+  	Description text,
+  	NoOfOpposingTeams integer,
+  	NoOfPlayersInEachTeam integer,
+  	WorldRecord numeric,
+  	WorldRecordHolder varchar(50), -- Name
+  	OlympicRecord numeric,
+  	OlympicRecordHolder varchar(50), -- Name
+  	SportID integer,
+   	constraint fkte FOREIGN KEY (SportID) references sport(SportID)
+  	 	ON DELETE SET DEFAULT ON UPDATE CASCADE,
+   	constraint pkte PRIMARY KEY(EventID)
+  );
+
+-- LEVEL 4
+  CREATE TABLE Athlete
+  (
+  	AthleteID integer,
+    Name varchar(50),
+  	DateOfBirth date,
+  	Height numeric,
+  	Weight numeric,
+  	Gender char,
+    CountryID varchar(3),
+  	TeamID integer,
+	
+  	constraint fka FOREIGN KEY (CountryID) references country(CountryID)
+   	 	ON DELETE SET DEFAULT ON UPDATE CASCADE,
+  	constraint fka1 FOREIGN KEY (TeamID) references team(TeamID)
+   	 	ON DELETE SET DEFAULT ON UPDATE CASCADE,
+    	constraint pka PRIMARY KEY(AthleteID)
+  );
+
+-- LEVEL 3
+ CREATE TABLE AthleteEventRounds
+ (
+ 	EventID integer,
+ 	RoundNumber integer,
+ 	StartTime timestamp,
+ 	EndTime timestamp,
+ 	VenueID integer,
+	Description text,
+ 	constraint fkaer FOREIGN KEY (EventID) references IndividualEvent(EventID)
+ 	ON DELETE SET DEFAULT ON UPDATE CASCADE,
+ 	constraint fkaer1 FOREIGN KEY (VenueID) references Venue(VenueID)
+ 	ON DELETE SET DEFAULT ON UPDATE CASCADE,
+ 	constraint pktaer PRIMARY KEY(EventID, RoundNumber)
+ );
+
+-- LEVEL 3
+  CREATE TABLE TeamEventRounds
+  (
+  	EventID integer,
+  	RoundNumber integer,
+  	StartTime timestamp,
+  	EndTime timestamp,
+  	VenueID integer,
+	Description text,
+  	constraint fkter FOREIGN KEY (EventID) references TeamEvent(EventID)
+  	ON DELETE SET DEFAULT ON UPDATE CASCADE,
+  	constraint fkter1 FOREIGN KEY (VenueID) references Venue(VenueID)
+  	ON DELETE SET DEFAULT ON UPDATE CASCADE,
+  	constraint pktter PRIMARY KEY(EventID, RoundNumber)
+  );
+
+-- LEVEL 5
+  CREATE TABLE AthleteCompetesIn
+  (
+  	AthleteID integer,
+  	EventID integer,
+  	RoundNumber integer,
+  	Position integer,
+  	Score numeric,
+  	constraint fkaci FOREIGN KEY (AthleteID) references Athlete(AthleteID)
+  	ON DELETE SET DEFAULT ON UPDATE CASCADE,
+  	constraint fkaci1 FOREIGN KEY (EventID, RoundNumber) references AthleteEventRounds(EventID, RoundNumber)
+  	ON DELETE SET DEFAULT ON UPDATE CASCADE,
+  	constraint pktaci PRIMARY KEY(AthleteID, EventID, RoundNumber)
+  );
+
+ --LEVEL 5
+  CREATE TABLE TeamCompetesIn
+  (
+  	TeamID integer,
+  	EventID integer,
+  	RoundNumber integer,
+  	Position integer,
+  	Score numeric,
+  	constraint fktci FOREIGN KEY (TeamID) references Team(TeamID)
+  	ON DELETE SET DEFAULT ON UPDATE CASCADE,
+  	constraint fktci1 FOREIGN KEY (EventID, RoundNumber) references TeamEventRounds(EventID, RoundNumber)
+  	ON DELETE SET DEFAULT ON UPDATE CASCADE,
+  	constraint pkttci PRIMARY KEY(TeamID, EventID, RoundNumber)
+  );
+
+ --LEVEL 5
+  CREATE TABLE AthleteRegistersIn
+  (
+  	AthleteID integer,
+  	EventID integer,
+  	constraint fkari FOREIGN KEY (AthleteID) references Athlete(AthleteID)
+  	ON DELETE SET DEFAULT ON UPDATE CASCADE,
+  	constraint fkari1 FOREIGN KEY (EventID) references IndividualEvent(EventID)
+  	ON DELETE SET DEFAULT ON UPDATE CASCADE,
+  	constraint pktari PRIMARY KEY(AthleteID, EventID)
+  );
+
+ --LEVEL 5
+  CREATE TABLE TeamRegistersIn
+  (
+  	TeamID integer,
+  	EventID integer,
+  	constraint fktri FOREIGN KEY (TeamID) references Team(TeamID)
+  	ON DELETE SET DEFAULT ON UPDATE CASCADE,
+  	constraint fktri1 FOREIGN KEY (EventID) references TeamEvent(EventID)
+  	ON DELETE SET DEFAULT ON UPDATE CASCADE,
+  	constraint pkttri PRIMARY KEY(TeamID, EventID)
+  );

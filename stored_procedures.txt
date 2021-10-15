@@ -1,0 +1,163 @@
+ 
+--Last Round Stored Procedure
+create or replace function last_round(eventid integer, is_team_event bool) returns integer as $BODY$
+DECLARE
+	last_round integer;
+BEGIN
+	if is_team_event=false then
+		select roundnumber into last_round from athleteeventrounds as atr where atr.eventid=eventid order by roundnumber desc fetch next 1 row only;
+	else
+		select roundnumber into last_round from teameventrounds as tr where tr.eventid=eventid order by roundnumber desc fetch next 1 row only;
+	end if;
+	return last_round;
+END $BODY$ language 'plpgsql';
+
+
+--Event Winners Stored Procedure
+create type winners as(
+	eventid integer,
+	gold integer,
+	silver integer,
+	bronze integer
+);
+create or replace function event_winners(event_id integer, is_team_event bool) returns setof winners as $BODY$
+DECLARE
+	rec winners%rowtype;
+	last_round integer;
+	res rowtype;
+BEGIN
+	select last_round(eventid, is_team_event) into last_round;
+	rec.eventid=eventid;
+	if is_team_event=true then
+		select * into res from athletecompetesin where eventid=event_id and roundnumber=last_round and position=1;
+		rec.gold:=res.athleteid;
+		select * into res from athletecompetesin where eventid=event_id and roundnumber=last_round and position=2;
+		rec.silver:=res.athleteid;
+		select * into res from athletecompetesin where eventid=event_id and roundnumber=last_round and position=3;
+		rec.bronze:=res.athleteid;
+	else
+		select * into res from teamcompetesin where eventid=event_id and roundnumber=last_round and position=1;
+		rec.gold:=res.athleteid;
+		select * into res from teamcompetesin where eventid=event_id and roundnumber=last_round and position=2;
+		rec.silver:=res.athleteid;
+		select * into res from teamcompetesin where eventid=event_id and roundnumber=last_round and position=3;
+		rec.bronze:=res.athleteid;
+	end if;
+	return next rec;
+	return;
+END $BODY$ language 'plpgsql';
+
+
+--Events in an interval Stored Procedure
+create type events as(
+	eventid integer,
+	is_team_event bool
+);
+
+create or replace function events_in_interval(start_time timestamp, end_time timestamp) returns setof events as $BODY$
+DECLARE
+	rec events%rowtype;
+	indvevent athleteeventrounds%rowtype;
+	teamevent teameventrounds%rowtype;
+BEGIN
+	for indvevent in select * from athleteeventrounds where starttime>=start_time and endtime<=end_time
+	loop
+	rec.eventid:=indvevent.eventid;
+	rec.is_team_event:=false;
+	return next rec;
+	end loop;
+	for teamevent in select * from teameventrounds where starttime>=start_time and endtime<=end_time
+	loop
+	rec.eventid:=teamevent.eventid;
+	rec.is_team_event:=false;
+	return next rec;
+	end loop;
+END $BODY$ language 'plpgsql';
+
+
+
+
+set search_path to olympics_database;
+
+
+
+
+
+
+--Number of gold, silver and bronze medals won by a country
+create type country_medals_type as(
+	Country varchar(3),
+	gold integer,
+	silver integer,
+	bronze integer
+);
+
+
+create or replace function country_medals(country varchar(3)) returns setof  country_medals_type as $BODY$
+DECLARE
+	ind_gold_medals integer;
+	ind_silver_medals integer;
+	ind_bronze_medals integer;
+	team_gold_medals integer;
+	team_silver_medals integer;
+	team_bronze_medals integer;
+	rec country_medals_type%rowtype;
+BEGIN
+	select count(*) into ind_gold_medals from athletecompetesin natural join athlete
+		where athletecompetesin.RoundNumber = last_round(event_id,false) and athletecompetesin.position = 1 and Athlete.CountryID = country;
+	select count(*) into ind_silver_medals from athletecompetesin natural join athlete
+		where athletecompetesin.RoundNumber = last_round(event_id,false) and athletecompetesin.position = 2 and Athlete.CountryID = country;
+	select count(*) into ind_bronze_medals from athletecompetesin natural join athlete
+		where athletecompetesin.RoundNumber = last_round(event_id,false) and athletecompetesin.position = 3 and Athlete.CountryID = country;
+		
+	select count(*) into team_gold_medals from teamcompetesin natural join team
+		where teamcompetesin.RoundNumber = last_round(event_id,true) and teamcompetesin.position = 1 and Team.CountryID = country;
+	select count(*) into team_silver_medals from teamcompetesin natural join team
+		where teamcompetesin.RoundNumber = last_round(event_id,true) and teamcompetesin.position = 2 and Team.CountryID = country;
+	select count(*) into team_bronze_medals from teamcompetesin natural join team
+		where teamcompetesin.RoundNumber = last_round(event_id,true) and teamcompetesin.position = 3 and Team.CountryID = country;
+		
+	rec.gold := ind_gold_medals + team_gold_medals;
+	rec.silver := ind_silver_medals + team_silver_medals;
+	rec.bronze := ind_bronze_medals + team_bronze_medals;
+	rec.country := country;
+	return next rec;
+END $BODY$ language 'plpgsql';
+
+
+
+-- Events in which a country has won a medal of a specific type 
+create type country_medal_event_type as(
+	eventID varchar(50),
+	participantID integer,
+	is_team_event bool
+);
+
+
+
+create or replace function country_medal_events(country varchar(3), medal_type integer) returns setof country_medal_event_type as $BODY$
+DECLARE
+	rec country_medal_event_type%rowtype;
+	events abc%rowtype;
+BEGIN
+	-- for individual events
+	 for events in select eventID, AthleteID from athletecompetesin natural join Athlete
+		where athletecompetesin.RoundNumber = last_round(event_id,false) and athletecompetesin.position = medal_type and Athlete.CountryID = country
+	loop
+		rec.eventID := events.eventID;
+		rec.participantID := events.AthleteID;
+		rec.is_team_event := false;
+		return next rec;
+	end loop;
+	
+	
+	-- for team events
+	for events in select eventID, teamID from teamcompetesin natural join Team
+		where teamcompetesin.RoundNumber = last_round(event_id,true) and teamcompetesin.position = medal_type and Team.CountryID = country
+	loop
+		rec.eventID := events.eventID;
+		rec.participantID := events.teamID;
+		rec.is_team_event := true;
+		return next rec;
+	end loop;
+END $BODY$ language 'plpgsql';

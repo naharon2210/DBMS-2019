@@ -1,0 +1,137 @@
+set search_path to olympics_database;
+--Record Update Trigger - Individual 
+-- create or replace function update_records() returns trigger as
+-- $update_records$
+-- DECLARE
+-- 	new_score numeric;
+-- 	ath integer;
+-- 	event integer;
+-- 	old_score_o numeric;
+-- 	old_score_w numeric;
+-- BEGIN
+-- 	new_score = NEW.Score;
+-- 	event = NEW.EventID;
+-- 	ath = NEW.AthleteID;
+-- 	select WorldRecord, OlympicRecord into old_score_w, old_score_o from IndividualEvent where EventID = event ;--check later
+	
+-- 	IF old_score_w IS NOT NULL THEN
+-- 		IF new_score > old_score_w THEN
+-- 			UPDATE IndividualEvent SET IndividualEvent.WorldRecord = new_score
+-- 				WHERE IndividualEvent.EventID = event;
+-- 			UPDATE IndividualEvent SET IndividualEvent.WorldRecordHolder = ath
+-- 				WHERE IndividualEvent.EventID = event;
+-- 		END IF;		
+-- 		IF new_score > old_score_o THEN
+-- 			UPDATE IndividualEvent SET IndividualEvent.OlympicRecord = new_score
+-- 				WHERE IndividualEvent.EventID = event;
+-- 			UPDATE IndividualEvent SET IndividualEvent.OlympicRecordHolder = ath
+-- 				WHERE IndividualEvent.EventID = event;
+-- 		END IF;
+-- 	END IF;
+-- END;
+-- $update_records$ 
+-- language 'plpgsql';
+
+-- CREATE TRIGGER update_records
+-- AFTER INSERT OR UPDATE ON AthleteCompetesIn
+--     FOR EACH ROW EXECUTE PROCEDURE update_records();
+    
+--Record Update Trigger - Team
+-- create or replace function update_team_records() returns trigger as
+-- $update_team_records$
+-- DECLARE
+-- 	new_score numeric;
+-- 	ath integer;
+-- 	event integer;
+-- 	old_score_o numeric;
+-- 	old_score_w numeric;
+-- BEGIN
+-- 	new_score = NEW.Score;
+-- 	event = NEW.EventID;
+-- 	ath = NEW.AthleteID;
+-- 	select WorldRecord, OlympicRecord into old_score_w, old_score_o from TeamEvent where EventID = event ; --check later
+	
+-- 	IF old_score_w IS NOT NULL THEN
+-- 		IF new_score > old_score_w THEN
+-- 			UPDATE TeamEvent SET TeamEvent.WorldRecord = new_score
+-- 				WHERE TeamEvent.EventID = event;
+-- 			UPDATE TeamEvent SET TeamEvent.WorldRecordHolder = ath
+-- 				WHERE TeamEvent.EventID = event;
+-- 		END IF;	
+-- 		IF new_score > old_score_o THEN
+-- 			UPDATE TeamEvent SET TeamEvent.OlympicRecord = new_score
+-- 				WHERE TeamEvent.EventID = event;
+-- 			UPDATE IndividualEvent SET TeamEvent.OlympicRecordHolder = ath
+-- 				WHERE TeamEvent.EventID = event;
+-- 		END IF;
+-- 	END IF;
+-- END;
+-- $update_team_records$ 
+-- language 'plpgsql';
+
+-- CREATE TRIGGER update_team_records
+-- AFTER INSERT OR UPDATE ON TeamCompetesIn
+--     FOR EACH ROW EXECUTE PROCEDURE update_team_records();
+    
+
+-- --Position Update Trigger - Individual
+ create or replace function update_position() returns trigger as
+ $update_position$
+ DECLARE
+ 	new_athlete integer;
+ 	new_round integer;
+ 	new_event integer;
+ 	athlete integer;
+ 	pos integer;
+ 	scr integer;
+ 	temp_row record;
+ 	i integer := 1;
+ BEGIN
+ 	new_round = NEW.RoundNumber;
+ 	new_event = NEW.EventID;
+ 	new_athlete = NEW.AthleteID;
+ 	FOR temp_row IN
+ 		Select AthleteID, Position, Score from AthleteCompetesIn where (EventID = new_event and  RoundNumber = new_round) order by score desc
+ 	LOOP 
+ 		update AthleteCompetesIn SET Position = i
+ 			where AthleteCompetesIn.AthleteID = athlete and AthleteCompetesIn.EventID = new_event and AthleteCompetesIn.RoundNumber = new_round;
+ 		i = i + 1;
+ 	END LOOP;
+	return NULL;
+ END $update_position$ language 'plpgsql';
+
+-- CREATE TRIGGER update_position
+-- AFTER INSERT OR UPDATE ON AthleteCompetesIn
+--     FOR EACH ROW EXECUTE PROCEDURE update_position();
+    
+    
+-- --Position Update Trigger - Team
+-- create or replace function update_team_position() returns trigger as
+-- $update_team_position$
+-- DECLARE
+-- 	new_athlete integer;
+-- 	new_round integer;
+-- 	new_event integer;
+-- 	team integer;
+-- 	temp_row record;
+-- 	i integer := 1;
+-- BEGIN
+	
+-- 	new_round = NEW.RoundNumber;
+-- 	new_event = NEW.EventID;
+-- 	new_athlete = NEW.AthleteID;
+-- 	FOR temp_row IN 
+-- 		Select TeamID, Position, Score into temp_row from TeamCompetesIn where( EventID = new_event,  RoundNumber = new_round) order by score desc
+-- 	LOOP 
+-- 		update TeamCompetesIn SET TeamCompetesIn.Position = i
+-- 			where TeamCompetesIn.TeamID = team and TeamCompetesIn.EventID = new_event and TeamCompetesIn.RoundNumber = new_round;
+-- 		i = i + 1;
+-- 	END LOOP;
+	
+-- END;
+-- $update_team_position$ 
+-- language 'plpgsql';
+
+-- CREATE TRIGGER update_team_position
+-- AFTER INSERT OR UPDATE ON TeamCompetesIn
+--     FOR EACH ROW EXECUTE PROCEDURE update_team_position();

@@ -1,0 +1,21 @@
+--for each 2 player Athlete event, find the top 3 rankers
+select AthleteID, EventID, Position from AthleteCompetesIn where RoundNumber = last_round(EventID, false) and position<=3;
+
+
+--Number of female Gold Medalists
+select AthleteID, Name,  EventID from AthleteCompetesIn natural join Athlete where Atlete.Gender = 'F' and RoundNumber = last_round(EventID, false) and position=1;
+
+
+--List of Events in a Day
+select AthleteID, Name, EventID from AthleteCompetesIn natural join Athlete natural join IndividualEvent where IndividualEvent.WorldRecord = AthleteCompetesIn.Score and Athlete.Name = IndividualEvent.WorldRecordHolder;
+
+
+--No of rounds of an event 
+select * from last_round('1120', true);
+
+-- Total details of all events
+select * from events_in_interval('01-01-2016 00:00', '12-31-2016 24:00');
+
+-- No. of Gold Silver Bronze won by India
+select * from country_medal_event('IND', '1');
+
